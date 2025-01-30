@@ -1,25 +1,35 @@
-db:
-    name: prestashop_db
-    user: prestashop_user
-    password: prestashop_password
+# Variables para el certificado de LetsEncrypt
+letsencrypt:
+  email: "admin@gmail.com"
+  domain: "practicaiawmoodle.zapto.org"
 
-frontend_private_ip: 172.31.42.68
+# Variables para Moodle
+moodle:
+  lang: "es"
+  wwwroot: "https://practicaiawmoodle.zapto.org"
+  dataroot: "/var/moodledata"
+  db:
+    type: "mysqli"
+    host: "172.31.33.225"
+    name: "Moodle"
+    user: "admin"
+    pass: "Usuario?"
+  fullname: "Practica 3.1"
+  shortname: "MOODLE"
+  summary: "Esta es mi web de Moodle"
+  admin:
+    user: "admin"
+    pass: "Usuario0?"
+    email: "demo@demo.es"
 
-prestashop:
-    language: es
-    name: DAW
-    country: es
-    ssl: 1
-    firstname: Nombre
-    lastname: Apellidos
-    email: usuario@email.es
-    password: p4SSw0rd123456
-    db_server: 172.31.40.109
-certbot:
-    email: otrousuario@email.es
-    domain: prestashow-iaw.ddns.net
+# Direcciones IP
+ips:
+  frontend_private: "172.31.47.161"
+  backend_private: "172.31.33.225"
 
-phpmyadmin:
-    user: pma_user
-    password: pma_password
-    db_name: db_name
+# Rutas
+routes:
+  apache_ini: "/etc/php/8.3/apache2/php.ini"
+  cli_ini: "/etc/php/8.3/cli/php.ini"
+  config_php: "/var/www/html/config.php"
+  moodle_directory: "/var/www/html/moodle"

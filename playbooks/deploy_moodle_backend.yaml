@@ -1,0 +1,43 @@
+---
+- name: Configuración de base de datos para Moodle
+  hosts: backend
+  become: yes  # Usamos privilegios de superusuario para realizar cambios
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Eliminar la base de datos si existe
+      mysql_db:
+        name: "{{ moodle.db.name }}"
+        state: absent
+        login_user: root
+
+    - name: Crear la base de datos
+      mysql_db:
+        name: "{{ moodle.db.name }}"
+        state: present
+        login_user: root
+
+    - name: Eliminar el usuario si existe
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        state: absent
+        login_user: root
+
+    - name: Crear el usuario para Moodle
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        password: "{{ moodle.db.pass }}"
+        priv: "{{ moodle.db.name }}.*:ALL"
+        state: present
+        login_user: root
+
+    - name: Actualizar privilegios
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        check_implicit_admin: yes
+        login_user: root
+

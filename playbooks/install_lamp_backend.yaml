@@ -1,0 +1,38 @@
+---
+- name: Configuración de MySQL
+  hosts: backend
+  become: yes
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Actualizar los repositorios
+      apt:
+        update_cache: yes
+
+    - name: Actualizar los paquetes instalados
+      apt:
+        upgrade: dist
+        autoremove: yes
+
+    - name: Instalar MySQL Server
+      apt:
+        name: mysql-server
+        state: present
+
+    - name: Instalamos el módulo de pymysql
+      apt:
+        name: python3-pymysql
+        state: present
+
+    - name: Configurar el archivo mysqld.cnf
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^bind-address\\s*=\\s*.*"
+        line: "bind-address = {{ ips.backend_private }}"
+        state: present
+        
+    - name: Reiniciar el servicio de MySQL
+      service:
+        name: mysql
+        state: restarted

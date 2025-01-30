@@ -1,10 +1,10 @@
 [frontend]
-54.146.221.169
+54.173.87.235
 
 [backend]
-54.162.98.208
+3.227.73.12
 
 [all:vars]
 ansible_user=ubuntu
-ansible_ssh_private_key_file=/home/ubuntu/practica-ansible/vockey3.pem
+ansible_ssh_private_key_file=/home/ubuntu/vockey3.pem
 ansible_ssh_common_args='-o StrictHostKeyChecking=accept-new'

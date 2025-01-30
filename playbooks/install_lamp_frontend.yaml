@@ -1,0 +1,62 @@
+---
+- name: Configurar servidor web Apache y PHP
+  hosts: frontend
+  become: yes
+  tasks:
+    - name: Actualizar repositorios
+      apt:
+        update_cache: yes
+
+    - name: Actualizar paquetes
+      apt:
+        upgrade: dist
+
+    - name: Instalar Apache
+      apt:
+        name: apache2
+        state: present
+
+    - name: Instalar unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Habilitar módulo rewrite de Apache
+      command: a2enmod rewrite
+
+    - name: Copiar archivo de configuración de Apache
+      copy:
+        src: ../templates/000-default.conf
+        dest: /etc/apache2/sites-available/000-default.conf
+
+    - name: Instalar PHP y módulos necesarios
+      apt:
+        name:
+          - php
+          - php-mysql
+          - libapache2-mod-php
+          - php-xml
+          - php-mbstring
+          - php-curl
+          - php-zip
+          - php-gd
+          - php-intl
+          - php-soap
+        state: present
+
+    - name: Reiniciar servicio de Apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: Copiar script de prueba de PHP
+      copy:
+        src: ../php/index.php
+        dest: /var/www/html/index.php
+
+    - name: Cambiar propietario y grupo del archivo index.php
+      file:
+        path: /var/www/html/index.php
+        owner: www-data
+        group: www-data
+        mode: "0644"

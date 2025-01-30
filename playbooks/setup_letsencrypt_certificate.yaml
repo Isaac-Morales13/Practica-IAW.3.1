@@ -1,0 +1,34 @@
+---
+- name: Instalar y configurar Certbot para Let's Encrypt
+  hosts: frontend  
+  become: yes  # Ejecutar con privilegios de superusuario
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Actualizar snapd
+      ansible.builtin.snap:
+        name: core
+        state: present
+
+    - name: Eliminar instalaciones previas de Certbot (si existen)
+      ansible.builtin.apt:
+        name: certbot
+        state: absent
+
+    - name: Instalar Certbot usando snap
+      ansible.builtin.snap:
+        name: certbot
+        classic: yes  # Usar el modo classic para Certbot
+
+    - name: Crear enlace simbólico para Certbot
+      ansible.builtin.file:
+        src: /snap/bin/certbot
+        dest: /usr/bin/certbot
+        state: link
+        force: yes  # Sobrescribir si ya existe
+
+    - name: Solicitar certificado de Let's Encrypt
+      ansible.builtin.command:
+        cmd: |
+          certbot --apache -m {{ letsencrypt.email }} --agree-tos --no-eff-email -d {{ letsencrypt.domain }} --non-interactive
