@@ -1,6 +1,8 @@
 # Practica-IAW.3.1
 Repositorio para la práctica 3.1
-En esta práctica vamos a realizar la administración de un sitio WordPress desde el terminal con la utilidad WP-CLI.
+
+(BORRADOR)
+En esta práctica vamos a realizar la administración de un sitio Moodle desde el terminal con la utilidad WP-CLI.
 
 Con la utilidad WP-CLI podemos realizar las mismas tareas que se pueden hacer desde el panel de administración web de WordPress, pero desde la línea de comandos
 
