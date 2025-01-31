@@ -1,0 +1,102 @@
+---
+# Playbook para la instalación y configuración de Moodle
+- name: Instalar y configurar Moodle
+  hosts: frontend
+  become: true
+  vars_files:
+    - ../vars/variables.yml  # Cargar variables desde un archivo externo
+
+  tasks:
+    - name: Habilitar módulo rewrite en Apache
+      ansible.builtin.command: a2enmod rewrite
+
+    - name: Eliminar instalaciones previas de Moodle
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ routes.moodle_directory }}"
+        - "{{ moodle.dataroot }}"
+        - "/tmp/{{ moodle.version }}.zip"
+
+    - name: Crear directorio de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        state: directory
+        mode: '0755'
+
+    - name: Descargar archivo zip de Moodle
+      ansible.builtin.get_url:
+        url: https://github.com/moodle/moodle/archive/refs/tags/v4.3.1.zip
+        dest: "/tmp/{{ moodle.version }}.zip"
+
+    - name: Descomprimir Moodle
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ moodle.version }}.zip"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Copiar archivos de Moodle al directorio web
+      ansible.builtin.copy:
+        src: "/tmp/moodle-{{ moodle.version }}/"
+        dest: "{{ routes.moodle_directory }}"
+        remote_src: yes
+
+    - name: Cambiar propietario y permisos del directorio de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        owner: "www-data"
+        group: "www-data"
+        mode: '0755'
+        recurse: yes
+
+    - name: Crear directorio para los datos de Moodle
+      ansible.builtin.file:
+        path: "{{ moodle.dataroot }}"
+        state: directory
+        owner: "www-data"
+        group: "www-data"
+        mode: '0777'
+
+    - name: Modificar configuración de PHP
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        regexp: "^;max_input_vars = 1000"
+        line: "max_input_vars = 5000"
+        state: present
+      loop:
+        - "{{ routes.apache_ini }}"
+        - "{{ routes.cli_ini }}"
+
+    - name: Instalar Moodle desde CLI
+      ansible.builtin.shell: |
+        php {{ routes.moodle_directory }}/admin/cli/install.php \
+          --lang={{ moodle.lang }} \
+          --wwwroot={{ moodle.wwwroot }} \
+          --dataroot={{ moodle.dataroot }} \
+          --dbtype={{ moodle.db.type }} \
+          --dbhost={{ moodle.db.host }} \
+          --dbname={{ moodle.db.name }} \
+          --dbuser={{ moodle.db.user }} \
+          --dbpass={{ moodle.db.pass }} \
+          --fullname="{{ moodle.fullname }}" \
+          --shortname="{{ moodle.shortname }}" \
+          --summary="{{ moodle.summary }}" \
+          --adminuser={{ moodle.admin.user }} \
+          --adminpass={{ moodle.admin.pass }} \
+          --adminemail={{ moodle.admin.email }} \
+          --non-interactive \
+          --agree-license
+      become: true
+
+    - name: Cambiar propietario de los archivos de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        owner: "www-data"
+        group: "www-data"
+        recurse: yes
+
+    - name: Reiniciar Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
