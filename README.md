@@ -2,11 +2,7 @@
 Repositorio para la práctica 3.1
 
 (BORRADOR)
-En esta práctica vamos a realizar la administración de un sitio Moodle desde el terminal con la utilidad WP-CLI.
-
-Con la utilidad WP-CLI podemos realizar las mismas tareas que se pueden hacer desde el panel de administración web de WordPress, pero desde la línea de comandos
-
-En primer lugar, tenemos que tener instalada y configurada la pila LAMP haciendo uso del scripts que diseñamos en la Actividad 1.1, ademas del script `setup_letsencrypt_certificate.sh`
+En esta práctica vamos a realizar la implantación de la aplicación web Moodle en dos instancias EC2 de Amazon Web Services (AWS) haciendo uso de playbooks de Ansible. En una de las instancias deberemos instalar Apache HTTP Server y los módulos necesarios de PHP y en la otra máquina deberá instalar MySQL Server.
 
 > [!IMPORTANT]  
 > Antes de empezar a configurar los archivos vamos a crear la siguiente estructura de archivos y directorios
