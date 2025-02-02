@@ -12,36 +12,115 @@ En esta práctica vamos a realizar la implantación de la aplicación web Moodle
 Lo primero que vamos a hacer es crear un nombre de dominio para nuestro servidor. Vamos a usar el proveedor de nombres de dominio gratuito `No-Ip`
 
 Nos registramos en la pagina y nos iremos a la sección no ip hostnames
-![](Imagenes/acceso_noip.png)
+![](Imagenes/noip1.png)
 
 Una vez dentro le damos a crear nombre de host
-![](Imagenes/noip_cambiar_nombrehost.png)
+![](Imagenes/noip2.png)
 
-Y se nos abrira un menú para crear el nombre de host, en mi caso le he cambiado el nombre y dominio y he añadido mi dirección IP
-![](Imagenes/noip_host_creado_.png)
+Y se nos abrira un menú para crear el nombre de host, en mi caso le he cambiado el nombre y dominio y he añadido la dirección ip del frontal
+![](Imagenes/noip3.png)
 
-Hecho esto, pasaremos a configurar el script de deploy de wordpress con la utilidad wpcli
+Hecho esto, pasaremos a configurar playbook que reunirá todos 
 
-## Configuración del archivo deploy_wordpress_with_wpcli
-
-### Primeros pasos
-Empezaremos añadiendo las siguientes lineas, siendo la primera para mostrar los comandos y finalizar si hay error y la segunda para importar el archivo de variables para tener acceso a estas
-
-```bash
-set -ex
-
-source .env
-```
 > [!IMPORTANT]  
-> Antes de seguir vamos a asegurarnos que tenemos el archivo .env configurado de esta manera. El archivo.env debe contener valores para estas variables pero en la captura se han eliminado para proteger esta información
->![](Imagenes/archivo_.env.png)
+> Antes de seguir vamos a asegurarnos que tenemos el archivo de variables configurado de esta manera. Este archivo sera importado por los diferentes playbooks
+> ```bash
+> Variables para el certificado de LetsEncrypt
+>letsencrypt:
+>  email: "admin@gmail.com"
+>  domain: "practicaiawmoodle.zapto.org"
+>
+> Variables para Moodle
+>moodle:
+>  version: "4.3.1"
+>  lang: "es"
+>  wwwroot: "https://practicaiawmoodle.zapto.org"
+>  dataroot: "/var/moodledata"
+>db:
+>    type: "mysqli"
+>    host: "172.31.33.225"
+>    name: "Moodle"
+>    user: "admin"
+>    pass: "Usuario?"
+>  fullname: "Practica 3.1"
+>  shortname: "MOODLE"
+>  summary: "Esta es mi web de Moodle"
+>  admin:
+>    user: "admin"
+>    pass: "Usuario0?"
+>    email: "demo@demo.es"
+>
+> Direcciones IP
+>ips:
+>  frontend_private: "172.31.47.161"
+>  backend_private: "172.31.33.225"
+>
+> Rutas
+>routes:
+>  apache_ini: "/etc/php/8.3/apache2/php.ini"
+>  cli_ini: "/etc/php/8.3/cli/php.ini"
+>  config_php: "/var/www/html/config.php"
+>  moodle_directory: "/var/www/html/moodle"
+>```
 
-### Descarga y configuración de WordPress y wpcli
+## Configuración del playbook main.yml
+Este playbook recopila todos en uno solo para desde un solo playbook ejecutar todos. Main.yml deberá tener este codigo
+
+```
+---
+- import_playbook: playbooks/install_lamp_frontend.yaml
+- import_playbook: playbooks/install_lamp_backend.yaml
+- import_playbook: playbooks/setup_letsencrypt_certificate.yaml
+- import_playbook: playbooks/deploy_moodle_backend.yaml
+- import_playbook: playbooks/deploy_moodle_frontend.yaml
+```
+
+Vamos a explicar los playbooks en el orden de que serán ejecutados
+
+ A PARTIR DE AQUI ES BORRADOR. HAY QUE CAMBIAR CIERTAS COSAS
+### Configuración de install install_lamp_frontend.yaml
 
 Empezamos eliminando descargas previas de wp-cli
 
 ```bash
-rm -rf /tmp/wp-cli.par
+---
+- name: Configuración de MySQL
+  hosts: backend
+  become: yes
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Actualizar los repositorios
+      apt:
+        update_cache: yes
+
+    - name: Actualizar los paquetes instalados
+      apt:
+        upgrade: dist
+        autoremove: yes
+
+    - name: Instalar MySQL Server
+      apt:
+        name: mysql-server
+        state: present
+
+    - name: Instalamos el módulo de pymysql
+      apt:
+        name: python3-pymysql
+        state: present
+
+    - name: Configurar el archivo mysqld.cnf
+      lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^bind-address\\s*=\\s*.*"
+        line: "bind-address = {{ ips.backend_private }}"
+        state: present
+        
+    - name: Reiniciar el servicio de MySQL
+      service:
+        name: mysql
+        state: restarted
 ```
 Una vez eliminado, descargamos la herramienta
 ```bash
