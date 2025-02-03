@@ -6,7 +6,7 @@
     - ../vars/variables.yml  # Archivo YAML con las variables necesarias
 
   tasks:
-    - name: Actualizar snapd
+    - name: Actualizar snap
       ansible.builtin.snap:
         name: core
         state: present
@@ -19,14 +19,14 @@
     - name: Instalar Certbot usando snap
       ansible.builtin.snap:
         name: certbot
-        classic: yes  # Usar el modo classic para Certbot
+        classic: yes  
 
     - name: Crear enlace simbólico para Certbot
       ansible.builtin.file:
         src: /snap/bin/certbot
         dest: /usr/bin/certbot
         state: link
-        force: yes  # Sobrescribir si ya existe
+        force: yes  
 
     - name: Solicitar certificado de Let's Encrypt
       ansible.builtin.command:

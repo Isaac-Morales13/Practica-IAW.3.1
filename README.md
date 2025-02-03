@@ -78,9 +78,82 @@ Este playbook recopila todos en uno solo para desde un solo playbook ejecutar to
 Vamos a explicar los playbooks en el orden de que serán ejecutados
 
  A PARTIR DE AQUI ES BORRADOR. HAY QUE CAMBIAR CIERTAS COSAS
-### Configuración de install install_lamp_frontend.yaml
+### Configuración del playbook install_lamp_frontend.yaml
 
-Empezamos eliminando descargas previas de wp-cli
+```bash
+---
+- name: Configurar servidor web Apache y PHP
+  hosts: frontend
+  become: yes
+  tasks:
+    - name: Actualizar repositorios
+      apt:
+        update_cache: yes
+
+    - name: Actualizar paquetes
+      apt:
+        upgrade: dist
+
+    - name: Instalar Apache
+      apt:
+        name: apache2
+        state: present
+
+    - name: Instalar unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Habilitar módulo rewrite de Apache
+      command: a2enmod rewrite
+
+    - name: Copiar archivo de configuración de Apache
+      copy:
+        src: ../templates/000-default.conf
+        dest: /etc/apache2/sites-available/000-default.conf
+
+    - name: Instalar PHP y módulos necesarios
+      apt:
+        name:
+          - php
+          - php-mysql
+          - libapache2-mod-php
+          - php-xml
+          - php-mbstring
+          - php-curl
+          - php-zip
+          - php-gd
+          - php-intl
+          - php-soap
+        state: present
+
+    - name: Reiniciar servicio de Apache
+      service:
+        name: apache2
+        state: restarted
+
+    - name: Copiar script de prueba de PHP
+      copy:
+        src: ../php/index.php
+        dest: /var/www/html/index.php
+
+    - name: Cambiar propietario y grupo del archivo index.php
+      file:
+        path: /var/www/html/index.php
+        owner: www-data
+        group: www-data
+        mode: "0644"
+```
+
+Este playbook se ejecutará en el frontal.Todos los comandos se ejecutaran como super usuario. Empezamos actualizando los repositorios y los paquetes, luego intalando apache y unzip
+
+Luego habilitamos el modulo rewrite, copiamos nuestra plantilla de Apache a la configuración de la maquina
+
+Instalamos PHP y modulos necesarios, reiniciamos Apache
+
+Por ultimo copiamos el script de prueba y cambiamos el propietario y el grupo del archivo index.php
+
+### Configuración del playbook install_lamp_backend.yaml
 
 ```bash
 ---
@@ -88,7 +161,7 @@ Empezamos eliminando descargas previas de wp-cli
   hosts: backend
   become: yes
   vars_files:
-    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+    - ../vars/variables.yml 
 
   tasks:
     - name: Actualizar los repositorios
@@ -121,175 +194,231 @@ Empezamos eliminando descargas previas de wp-cli
       service:
         name: mysql
         state: restarted
-```
-Una vez eliminado, descargamos la herramienta
-```bash
-curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-```
-Le asignamos permisos de ejecución al archivo wp-cli.phar
-```bash
-chmod +x wp-cli.phar
-```
-Movemos el archivo wp-cli.phar al directorio /usr/local/bin/
-```bash
-mv wp-cli.phar /usr/local/bin/wp
-```
-Eliminamos instalaciones previas en /var/www/html
-```bash
-rm -rf $WORDPRESS_DIRECTORY/*
-```
-Descargamos el código fuente de Wordpress
-```bash
-wp core download --locale=es_ES --path=/var/www/html --allow-root
-```
-Creamos la base de datos y el usuario para WordPress.
-Usaremos las variables definidas en el .env
-```bash
-mysql -u root <<< "DROP DATABASE IF EXISTS $WORDPRESS_DB_NAME"
-mysql -u root <<< "CREATE DATABASE $WORDPRESS_DB_NAME"
-mysql -u root <<< "DROP USER IF EXISTS $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL"
-mysql -u root <<< "CREATE USER $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL IDENTIFIED BY '$WORDPRESS_DB_PASSWORD'"
-mysql -u root <<< "GRANT ALL PRIVILEGES ON $WORDPRESS_DB_NAME.* TO $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL"
-```
-Creamos el archivo de configuración usando las variables del .env
-```bash
-wp config create \
-  --dbname=$WORDPRESS_DB_NAME \
-  --dbuser=$WORDPRESS_DB_USER \
-  --dbpass=$WORDPRESS_DB_PASSWORD \
-  --dbhost=$WORDPRESS_DB_HOST \
-  --path=$WORDPRESS_DIRECTORY \
-  --allow-root
-```
-Instalamos WordPress
-```bash
-wp core install \
-  --url=$LE_DOMAIN\
-  --title="$WORDPRESS_TITLE" \
-  --admin_user=$WORDPRESS_ADMIN_USER \
-  --admin_password=$WORDPRESS_ADMIN_PASS \
-  --admin_email=$WORDPRESS_ADMIN_EMAIL \
-  --path=$WORDPRESS_DIRECTORY \
-  --allow-root  
-```
-`--url`: Dominio del sitio WordPress. En una instalación en una máquina local también podríamos poner localhost o la dirección IP del servidor
 
-`--title`: Título del sitio WordPress
+```
+Este playbook se ejecutará en el backend.Todos los comandos se ejecutaran como super usuario. Empezamos actualizando los repositorios y los paquetes
 
-`--admin_user`: Nombre del usuario administrador
+Luego instalando mysql server y el módulo de pymsql
 
-`--admin_password`: Contraseña del usuario administrador
+Finalmente configuramos el archivo mysqld.cnf con nuestra ip y reiniciamos mysql
 
-`--admin_email`: Email del usuario administrador
+### Configuración del playbook setup_letsencrypt_certificate.yaml
 
-Añadimos un comando para añadir un tema a la pagina, en mi caso he elegido el mindscape
-```bash
-wp theme install mindscape --activate --path=$WORDPRESS_DIRECTORY --allow-root
-```
-Instalamos el plugin de hide login, quese encargara de poner la pagina de administracion de wordpress en en elace que digamos
-```bash
-wp plugin install wps-hide-login --activate --path=$WORDPRESS_DIRECTORY --allow-root
-```
-Configuraremos el plugin añadiendo el enlace que vamos a usar para el login
-```bash
-wp option update whl_page "$WORDPRESS_HIDE_LOGIN" --path=$WORDPRESS_DIRECTORY --allow-root
-```
-Tambien vamos a configurar los enlaces permanentes
-```bash
-wp rewrite structure '/%postname%/' --path=$WORDPRESS_DIRECTORY --allow-root
-```
-`-/%postname%/`: indica el patrón de reescritura que queremos utilizar
 
-Copiamos el archivo htacces
-```bash
-cp ../htaccess/.htaccess $WORDPRESS_DIRECTORY
 ```
-Finalmente modificamos el propietario y el grupo del directorio
-```bash
-chown -R www-data:www-data $WORDPRESS_DIRECTORY
+---
+- name: Instalar y configurar Certbot para Let's Encrypt
+  hosts: frontend  
+  become: yes  # Ejecutar con privilegios de superusuario
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Actualizar snapd
+      ansible.builtin.snap:
+        name: core
+        state: present
+
+    - name: Eliminar instalaciones previas de Certbot (si existen)
+      ansible.builtin.apt:
+        name: certbot
+        state: absent
+
+    - name: Instalar Certbot usando snap
+      ansible.builtin.snap:
+        name: certbot
+        classic: yes  
+
+    - name: Crear enlace simbólico para Certbot
+      ansible.builtin.file:
+        src: /snap/bin/certbot
+        dest: /usr/bin/certbot
+        state: link
+        force: yes  
+
+    - name: Solicitar certificado de Let's Encrypt
+      ansible.builtin.command:
+        cmd: |
+          certbot --apache -m {{ letsencrypt.email }} --agree-tos --no-eff-email -d {{ letsencrypt.domain }} --non-interactive
 ```
+Este playbook se ejecutará en el frontal.Todos los comandos se ejecutaran como super usuario. Empezamos actualizando snap
+
+Eliminamos instalaciones previas de Cerbot y lo instalamos usando snap
+
+Creamos el enlace simbolico para Certbot
+
+Finalmente solicitamos el certificado de Lets Encrypt
+
+
+### Configuración del playbook deploy_moodle_backend.yaml
+
+```
+---
+- name: Configuración de base de datos para Moodle
+  hosts: backend
+  become: yes  # Usamos privilegios de superusuario para realizar cambios
+  vars_files:
+    - ../vars/variables.yml  # Archivo YAML con las variables necesarias
+
+  tasks:
+    - name: Eliminar la base de datos si existe
+      mysql_db:
+        name: "{{ moodle.db.name }}"
+        state: absent
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Crear la base de datos
+      mysql_db:
+        name: "{{ moodle.db.name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Eliminar el usuario si existe
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        state: absent
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Crear el usuario para Moodle
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        password: "{{ moodle.db.pass }}"
+        priv: "{{ moodle.db.name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Actualizar privilegios
+      mysql_user:
+        name: "{{ moodle.db.user }}"
+        host: "{{ ips.frontend_private }}"
+        check_implicit_admin: yes
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+```
+Este playbook se ejecutará en el backend.Todos los comandos se ejecutaran como super usuario. Empezamos eliminando la base de datos si existe y la creamos 
+
+Eliminamos el usuario si existe y creamos el usuario para Moodle. Finamente actualizamos sus privilegios
+
+### Configuración del playbook deploy_moodle_frontend.yaml
+
+```
+---
+# Playbook para la instalación y configuración de Moodle
+- name: Instalar y configurar Moodle
+  hosts: frontend
+  become: true
+  vars_files:
+    - ../vars/variables.yml  # Cargar variables desde un archivo externo
+
+  tasks:
+    - name: Habilitar módulo rewrite en Apache
+      ansible.builtin.command: a2enmod rewrite
+
+    - name: Eliminar instalaciones previas de Moodle
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ routes.moodle_directory }}"
+        - "{{ moodle.dataroot }}"
+        - "/tmp/{{ moodle.version }}.zip"
+
+    - name: Crear directorio de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        state: directory
+        mode: '0755'
+
+    - name: Descargar archivo zip de Moodle
+      ansible.builtin.get_url:
+        url: https://github.com/moodle/moodle/archive/refs/tags/v4.3.1.zip
+        dest: "/tmp/{{ moodle.version }}.zip"
+
+    - name: Descomprimir Moodle
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ moodle.version }}.zip"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Copiar archivos de Moodle al directorio web
+      ansible.builtin.copy:
+        src: "/tmp/moodle-{{ moodle.version }}/"
+        dest: "{{ routes.moodle_directory }}"
+        remote_src: yes
+
+    - name: Cambiar propietario y permisos del directorio de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        owner: "www-data"
+        group: "www-data"
+        mode: '0755'
+        recurse: yes
+
+    - name: Crear directorio para los datos de Moodle
+      ansible.builtin.file:
+        path: "{{ moodle.dataroot }}"
+        state: directory
+        owner: "www-data"
+        group: "www-data"
+        mode: '0777'
+
+    - name: Modificar configuración de PHP
+      ansible.builtin.lineinfile:
+        path: "{{ item }}"
+        regexp: "^;max_input_vars = 1000"
+        line: "max_input_vars = 5000"
+        state: present
+      loop:
+        - "{{ routes.apache_ini }}"
+        - "{{ routes.cli_ini }}"
+
+    - name: Instalar Moodle desde CLI
+      ansible.builtin.shell: |
+        php {{ routes.moodle_directory }}/admin/cli/install.php \
+          --lang={{ moodle.lang }} \
+          --wwwroot={{ moodle.wwwroot }} \
+          --dataroot={{ moodle.dataroot }} \
+          --dbtype={{ moodle.db.type }} \
+          --dbhost={{ moodle.db.host }} \
+          --dbname={{ moodle.db.name }} \
+          --dbuser={{ moodle.db.user }} \
+          --dbpass={{ moodle.db.pass }} \
+          --fullname="{{ moodle.fullname }}" \
+          --shortname="{{ moodle.shortname }}" \
+          --summary="{{ moodle.summary }}" \
+          --adminuser={{ moodle.admin.user }} \
+          --adminpass={{ moodle.admin.pass }} \
+          --adminemail={{ moodle.admin.email }} \
+          --non-interactive \
+          --agree-license
+      become: true
+
+    - name: Cambiar propietario de los archivos de Moodle
+      ansible.builtin.file:
+        path: "{{ routes.moodle_directory }}"
+        owner: "www-data"
+        group: "www-data"
+        recurse: yes
+
+    - name: Reiniciar Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+```
+Este playbook se ejecutará en el frontal.Todos los comandos se ejecutaran como super usuario. Empezamos habilitando el modulo rewrite en Apache 
+
+Eliminamos instalaciones previas de Moodle. Creamos el directorio de Moodle
+
+Descargamos el archivo zip de Moodle. Lo descomprimimos
+
+Copiamos los archivos de Moodle al directorio web y le cambiamos propietario y permisos
+
+Creamos directorio para los datos de Moodle
+
+Modificamos configuración de PHP e instalamos Moodle desde el cli
+
+Finalmente cambiamos el propietario de los archivos de Moodle y reiniciamos Apache
+
 ### Comprobaciones
-Ahora vamos a comprobar que se ha configurado todo correctamente
 
-Ponemos el dominio en el navegador y vemos que nos mete directamente en la pagina ya configurada
-![](Imagenes/Acceso_wp.png)
-
-Si ponemos wordpress-asir.zapto.org/nadaimportante nos llevara al incio de sesion de admin ya que ese es enlace que hemos puesto para el login
-![](Imagenes/wp_nadaimportante.png)
-
-y si ponemos wordpress-asir.zapto.org/wp-admin nos dirá que pagina no encontrada
-![](Imagenes/wp_no_encuentra.png)
-
-Hecho esto el script deberia de estar asi
-```bash
-#!/bin/bash
-
-# Configuramos para mostrar los comandos y finalizar si hay error
-set -ex
-
-#Importamos las variables de entorno
-source .env
-
-# Eliminamos descargas previas de wp-cli
-rm -rf /tmp/wp-cli.par
-
-# Descargamos el wP-CLI
-curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-
-# Le asignamos permisos de ejecución al archivo wp-cli.phar.
-chmod +x wp-cli.phar
-
-# Movemos el archivo wp-cli.phar al directorio /usr/local/bin/
-mv wp-cli.phar /usr/local/bin/wp
-
-# Eliminamos instalaciones previas en /var/www/html
-rm -rf $WORDPRESS_DIRECTORY/*
-
-# Descargamos el código fuente de WordPress
-wp core download --locale=es_ES --path=/var/www/html --allow-root
-
-# Creamos la base de datos y el usuario para WordPress
-mysql -u root <<< "DROP DATABASE IF EXISTS $WORDPRESS_DB_NAME"
-mysql -u root <<< "CREATE DATABASE $WORDPRESS_DB_NAME"
-mysql -u root <<< "DROP USER IF EXISTS $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL"
-mysql -u root <<< "CREATE USER $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL IDENTIFIED BY '$WORDPRESS_DB_PASSWORD'"
-mysql -u root <<< "GRANT ALL PRIVILEGES ON $WORDPRESS_DB_NAME.* TO $WORDPRESS_DB_USER@$IP_CLIENTE_MYSQL"
-
-# Creamos el archivo de configuración
-wp config create \
-  --dbname=$WORDPRESS_DB_NAME \
-  --dbuser=$WORDPRESS_DB_USER \
-  --dbpass=$WORDPRESS_DB_PASSWORD \
-  --dbhost=$WORDPRESS_DB_HOST \
-  --path=$WORDPRESS_DIRECTORY \
-  --allow-root
-
-# Instalación de WordPress
-
-wp core install \
-  --url=$LE_DOMAIN\
-  --title="$WORDPRESS_TITLE" \
-  --admin_user=$WORDPRESS_ADMIN_USER \
-  --admin_password=$WORDPRESS_ADMIN_PASS \
-  --admin_email=$WORDPRESS_ADMIN_EMAIL \
-  --path=$WORDPRESS_DIRECTORY \
-  --allow-root  
- 
-# Instalamos y actiamos el theme mindscape
-wp theme install mindscape --activate --path=$WORDPRESS_DIRECTORY --allow-root
-
-#Instalamos un plugin
-wp plugin install wps-hide-login --activate --path=$WORDPRESS_DIRECTORY --allow-root
-
-#Configuramos el plugin de Url
-wp option update whl_page "$WORDPRESS_HIDE_LOGIN" --path=$WORDPRESS_DIRECTORY --allow-root
-  
-# Enlaces permanentes
-wp rewrite structure '/%postname%/' --path=$WORDPRESS_DIRECTORY --allow-root
-
-# Copiamos el archivo .htaccess
-cp ../htaccess/.htaccess $WORDPRESS_DIRECTORY
-  
-# Modificamos el propietario y el grupo del directio de /var/www/html
-chown -R www-data:www-data $WORDPRESS_DIRECTORY
-```
