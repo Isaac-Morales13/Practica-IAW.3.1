@@ -60,7 +60,7 @@ Hecho esto, pasaremos a configurar playbook que reunirá todos
 >  apache_ini: "/etc/php/8.3/apache2/php.ini"
 >  cli_ini: "/etc/php/8.3/cli/php.ini"
 >  config_php: "/var/www/html/config.php"
->  moodle_directory: "/var/www/html/moodle"
+>  moodle_directory: "/var/www/html"
 >```
 
 ## Configuración del playbook main.yml
@@ -422,3 +422,10 @@ Finalmente cambiamos el propietario de los archivos de Moodle y reiniciamos Apac
 
 ### Comprobaciones
 
+Ahora si ponemos el nombre del dominio en el navegador nos llevará a nuestro Moodle
+
+![](Imagenes/Moodle1.png)
+
+Iniciamos sesión y una vez iniciada veremos algo parecido a esto
+
+![](Imagenes/Moodle2.png)

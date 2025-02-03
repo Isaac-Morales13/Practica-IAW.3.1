@@ -7,7 +7,7 @@ letsencrypt:
 moodle:
   version: "4.3.1"
   lang: "es"
-  wwwroot: "https://practicaiawmoodle.zapto.org/moodle"
+  wwwroot: "https://practicaiawmoodle.zapto.org"
   dataroot: "/var/moodledata"
   db:
     type: "mysqli"
@@ -33,4 +33,4 @@ routes:
   apache_ini: "/etc/php/8.3/apache2/php.ini"
   cli_ini: "/etc/php/8.3/cli/php.ini"
   config_php: "/var/www/html/config.php"
-  moodle_directory: "/var/www/html/moodle"
+  moodle_directory: "/var/www/html"
