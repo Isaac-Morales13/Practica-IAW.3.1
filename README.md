@@ -76,7 +76,6 @@ Este playbook recopila todos en uno solo para desde un solo playbook ejecutar to
 
 Vamos a explicar los playbooks en el orden de que serán ejecutados
 
- A PARTIR DE AQUI ES BORRADOR. HAY QUE CAMBIAR CIERTAS COSAS
 ### Configuración del playbook install_lamp_frontend.yaml
 
 ```bash
